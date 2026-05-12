@@ -1,42 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Coffee, Sun, Apple, Moon, Cookie } from "lucide-react";
+import { Apple, Coffee, Moon, Sun } from "lucide-react";
+
+import { meals } from "@/lib/fitness-data";
 
 export const Route = createFileRoute("/dieta")({
   component: Dieta,
 });
 
-const meals = [
-  { id: "cafe", name: "Café da manhã", time: "07:00", icon: Coffee, kcal: 480, protein: 32, items: [
-    { food: "Ovos mexidos", qty: "3 unid", obs: "" },
-    { food: "Pão integral", qty: "2 fatias", obs: "" },
-    { food: "Whey protein", qty: "30g", obs: "com água" },
-    { food: "Banana", qty: "1 unid", obs: "" },
-  ]},
-  { id: "almoco", name: "Almoço", time: "12:30", icon: Sun, kcal: 620, protein: 52, items: [
-    { food: "Frango grelhado", qty: "180g", obs: "tempero light" },
-    { food: "Arroz integral", qty: "120g", obs: "" },
-    { food: "Brócolis", qty: "100g", obs: "vapor" },
-    { food: "Azeite", qty: "10ml", obs: "" },
-  ]},
-  { id: "lanche", name: "Lanche", time: "16:00", icon: Apple, kcal: 280, protein: 22, items: [
-    { food: "Iogurte natural", qty: "200g", obs: "" },
-    { food: "Granola", qty: "30g", obs: "" },
-    { food: "Mel", qty: "1 colher", obs: "opcional" },
-  ]},
-  { id: "jantar", name: "Jantar", time: "20:00", icon: Moon, kcal: 540, protein: 45, items: [
-    { food: "Tilápia", qty: "150g", obs: "no forno" },
-    { food: "Batata doce", qty: "150g", obs: "" },
-    { food: "Salada verde", qty: "à vontade", obs: "" },
-  ]},
-  { id: "ceia", name: "Ceia", time: "22:30", icon: Cookie, kcal: 180, protein: 24, items: [
-    { food: "Caseína", qty: "30g", obs: "antes de dormir" },
-    { food: "Pasta de amendoim", qty: "1 colher", obs: "" },
-  ]},
-];
+const mealIcons = {
+  cafe: Coffee,
+  almoco: Sun,
+  "pre-treino": Apple,
+  jantar: Moon,
+};
 
 function Dieta() {
-  const totalKcal = meals.reduce((a, m) => a + m.kcal, 0);
-  const totalProtein = meals.reduce((a, m) => a + m.protein, 0);
+  const totalItems = meals.reduce((a, m) => a + m.items.length, 0);
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto">
@@ -47,19 +26,19 @@ function Dieta() {
         </div>
         <div className="flex gap-3">
           <div className="card-elevated rounded-xl px-5 py-3">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Calorias</div>
-            <div className="text-xl font-bold text-neon">{totalKcal} kcal</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Refeições</div>
+            <div className="text-xl font-bold text-neon">{meals.length}</div>
           </div>
           <div className="card-elevated rounded-xl px-5 py-3">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Proteínas</div>
-            <div className="text-xl font-bold text-accent">{totalProtein} g</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Alimentos</div>
+            <div className="text-xl font-bold text-accent">{totalItems}</div>
           </div>
         </div>
       </header>
 
       <div className="grid lg:grid-cols-2 gap-4">
         {meals.map((m) => {
-          const Icon = m.icon;
+          const Icon = mealIcons[m.id as keyof typeof mealIcons];
           return (
             <div key={m.id} className="card-elevated rounded-2xl p-6">
               <div className="flex items-center justify-between mb-5">
@@ -73,8 +52,8 @@ function Dieta() {
                   </div>
                 </div>
                 <div className="text-right text-xs">
-                  <div className="font-bold text-neon">{m.kcal} kcal</div>
-                  <div className="text-muted-foreground">{m.protein}g prot</div>
+                  <div className="font-bold text-neon">{m.items.length} itens</div>
+                  <div className="text-muted-foreground">plano diário</div>
                 </div>
               </div>
               <ul className="divide-y divide-border">

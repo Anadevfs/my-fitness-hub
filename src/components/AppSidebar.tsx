@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Dumbbell,
@@ -6,8 +6,11 @@ import {
   TrendingUp,
   CheckCircle2,
   LogOut,
-  Flame,
 } from "lucide-react";
+
+import { BrandLogo } from "@/components/BrandLogo";
+import { UserAvatar } from "@/components/UserAvatar";
+import { useAuthProfile } from "@/hooks/use-auth-profile";
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -19,16 +22,21 @@ const items = [
 
 export function AppSidebar() {
   const currentPath = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const { logout } = useAuthProfile();
+
+  function handleLogout() {
+    logout();
+    navigate({ to: "/login" });
+  }
 
   return (
     <aside className="hidden md:flex w-64 shrink-0 flex-col bg-sidebar border-r border-sidebar-border">
       <div className="flex items-center gap-2 px-6 py-6 border-b border-sidebar-border">
-        <div className="h-9 w-9 rounded-xl gradient-primary flex items-center justify-center glow-neon">
-          <Flame className="h-5 w-5 text-primary-foreground" />
-        </div>
+        <BrandLogo size="sm" />
         <div>
-          <div className="text-lg font-bold tracking-tight">Treinos</div>
-          <div className="text-[11px] text-muted-foreground -mt-0.5">Fitness Tracker</div>
+          <div className="text-lg font-bold tracking-tight">ValkyrFit</div>
+          <div className="text-[11px] text-muted-foreground -mt-0.5">Strength in Every Rep</div>
         </div>
       </div>
 
@@ -55,13 +63,17 @@ export function AppSidebar() {
       </nav>
 
       <div className="p-3 border-t border-sidebar-border">
-        <Link
-          to="/login"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all"
+        <div className="px-3 py-2.5">
+          <UserAvatar size="sm" showName />
+        </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all"
         >
           <LogOut className="h-4 w-4" />
           Sair
-        </Link>
+        </button>
       </div>
     </aside>
   );

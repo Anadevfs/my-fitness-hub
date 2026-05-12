@@ -1,25 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Droplet, Moon, Heart, Footprints, Pill } from "lucide-react";
-import { useState } from "react";
+import { Droplet, Heart, Pill } from "lucide-react";
+
+import { useHabitChecks } from "@/hooks/use-habit-checks";
+import { habits } from "@/lib/fitness-data";
 
 export const Route = createFileRoute("/habitos")({
   component: Habitos,
 });
 
-const initial = [
-  { id: "agua", label: "Água", goal: "3 L", icon: Droplet, items: ["Copo 1", "Copo 2", "Copo 3", "Copo 4", "Copo 5", "Copo 6"] },
-  { id: "sono", label: "Sono", goal: "8 h", icon: Moon, items: ["Dormir antes das 23h", "8h de sono"] },
-  { id: "cardio", label: "Cardio", goal: "30 min", icon: Heart, items: ["Esteira 20min", "Bike 10min"] },
-  { id: "passos", label: "Passos", goal: "10.000", icon: Footprints, items: ["Caminhada manhã", "Caminhada tarde", "Caminhada noite"] },
-  { id: "supl", label: "Suplementação", goal: "Diária", icon: Pill, items: ["Whey", "Creatina", "Multivitamínico", "Ômega 3"] },
-];
+const habitIcons = {
+  agua: Droplet,
+  cardio: Heart,
+  supl: Pill,
+};
 
 function Habitos() {
-  const [checks, setChecks] = useState<Record<string, boolean>>({
-    "agua-Copo 1": true, "agua-Copo 2": true, "agua-Copo 3": true,
-    "cardio-Esteira 20min": true,
-    "supl-Whey": true, "supl-Creatina": true,
-  });
+  const [checks, setChecks] = useHabitChecks();
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto">
@@ -29,10 +25,15 @@ function Habitos() {
       </header>
 
       <div className="grid md:grid-cols-2 gap-4">
-        {initial.map((h) => {
-          const Icon = h.icon;
+        {habits.map((h) => {
+          const Icon = habitIcons[h.id as keyof typeof habitIcons];
           const completed = h.items.filter((i) => checks[`${h.id}-${i}`]).length;
           const pct = (completed / h.items.length) * 100;
+          const progress =
+            h.id === "agua" && completed === h.items.length
+              ? "3L concluídos"
+              : `${completed}/${h.items.length}`;
+
           return (
             <div key={h.id} className="card-elevated rounded-2xl p-6">
               <div className="flex items-center justify-between mb-4">
@@ -43,10 +44,14 @@ function Habitos() {
                   <div>
                     <h2 className="font-semibold">{h.label}</h2>
                     <p className="text-xs text-muted-foreground">Meta: {h.goal}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{h.description}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-bold text-neon">{completed}/{h.items.length}</div>
+                  <div className="text-sm font-bold text-neon">{progress}</div>
+                  {h.id === "agua" && (
+                    <div className="text-[11px] text-muted-foreground">600ml cada</div>
+                  )}
                 </div>
               </div>
 
