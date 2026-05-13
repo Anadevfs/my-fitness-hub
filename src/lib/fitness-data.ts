@@ -19,11 +19,23 @@ export type Meal = {
   id: string;
   name: string;
   time: string;
+  calories: string;
+  note: string;
+  badges: string[];
   items: {
     food: string;
     qty: string;
     obs: string;
   }[];
+};
+
+export type NutritionSummary = {
+  estimatedBurn: string;
+  targetRange: string;
+  mainTarget: string;
+  goal: string;
+  strategy: string[];
+  progressPercent: number;
 };
 
 export type Habit = {
@@ -225,42 +237,69 @@ export const workoutWeek: WorkoutDay[] = [
   },
 ];
 
+export const nutritionSummary: NutritionSummary = {
+  estimatedBurn: "2.350 kcal",
+  targetRange: "1.900-2.050 kcal",
+  mainTarget: "~2.000 kcal",
+  goal: "Recomposição corporal",
+  strategy: ["Secar", "Ganhar massa", "Proteína alta", "Carbo bem distribuído"],
+  progressPercent: 85,
+};
+
 export const meals: Meal[] = [
   {
     id: "cafe",
     name: "Café da manhã",
     time: "Manhã",
+    calories: "350-400 kcal",
+    note: "Melhora energia matinal e recuperação.",
+    badges: ["Recuperação"],
     items: [
       { food: "Pão sem miolo", qty: "1 unid", obs: "" },
-      { food: "Ovos mexidos", qty: "2 ovos", obs: "" },
+      { food: "Ovos", qty: "2 ovos", obs: "" },
+      { food: "Fruta", qty: "1 porção", obs: "banana ou mamão" },
     ],
   },
   {
     id: "almoco",
     name: "Almoço",
     time: "Meio do dia",
+    calories: "500-600 kcal",
+    note: "Gordura boa ajuda hormônios e recuperação.",
+    badges: ["Alta proteína", "Recuperação"],
     items: [
-      { food: "Arroz", qty: "100g", obs: "" },
-      { food: "Proteína", qty: "150g", obs: "" },
+      { food: "Arroz", qty: "120g", obs: "" },
+      { food: "Proteína", qty: "150g", obs: "carne moída magra ou bisteca sem gordura" },
       { food: "Legumes", qty: "130g", obs: "" },
+      { food: "Azeite", qty: "5g", obs: "1 fio pequeno" },
     ],
   },
   {
     id: "pre-treino",
     name: "Pré-treino",
     time: "Antes do treino",
+    calories: "300-350 kcal",
+    note: "Foco em performance e energia.",
+    badges: ["Performance"],
     items: [
-      { food: "Panqueca de banana", qty: "1 unid", obs: "" },
-      { food: "Fruta", qty: "100g", obs: "" },
+      { food: "Banana", qty: "1 unid", obs: "base da panqueca" },
+      { food: "Ovo", qty: "1 ovo", obs: "base da panqueca" },
+      { food: "Aveia", qty: "20g", obs: "+10g opcional" },
+      { food: "Melão", qty: "1 porção", obs: "" },
+      { food: "Mel", qty: "1 colher", obs: "opcional visual" },
     ],
   },
   {
     id: "jantar",
     name: "Jantar",
     time: "Noite",
+    calories: "450-550 kcal",
+    note: "Se treino intenso, pode aumentar carbo.",
+    badges: ["Alta proteína", "Performance"],
     items: [
-      { food: "Cuscuz", qty: "100g", obs: "" },
+      { food: "Cuscuz", qty: "120g", obs: "" },
       { food: "Proteína", qty: "150g", obs: "" },
+      { food: "Legumes", qty: "a vontade", obs: "" },
     ],
   },
 ];

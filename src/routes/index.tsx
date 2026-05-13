@@ -1,18 +1,19 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Droplet, Dumbbell, Moon, Pill, Salad, Scale, TrendingUp } from "lucide-react";
+import { CheckCircle2, Circle, Droplet, Dumbbell, Moon, Pill, Salad, Scale, TrendingUp } from "lucide-react";
 
 import { BrandLogo } from "@/components/BrandLogo";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuthProfile } from "@/hooks/use-auth-profile";
+import { useEvolutionSettings } from "@/hooks/use-evolution-settings";
 import { useHabitChecks } from "@/hooks/use-habit-checks";
+import { useWorkoutHistory } from "@/hooks/use-workout-history";
 import {
   getExerciseCount,
   getExercises,
+  getTodayKey,
   getTodayWorkout,
-  getWeekdayName,
   habits,
   meals,
-  weightHistory,
   workoutWeek,
 } from "@/lib/fitness-data";
 
@@ -37,10 +38,19 @@ function Stat({ icon: Icon, label, value, sub, accent }: any) {
 
 function Dashboard() {
   const [checks] = useHabitChecks();
+  const [evolutionSettings] = useEvolutionSettings();
   const navigate = useNavigate();
   const { logout, profile } = useAuthProfile();
   const today = new Date();
   const todayWorkout = getTodayWorkout(today);
+  const {
+    completedExerciseCount,
+    history,
+    isTodayWorkoutCompleted,
+    isTodayWorkoutInProgress,
+    startTodayWorkout,
+    todayExerciseCount,
+  } = useWorkoutHistory(today);
   const todayExercises = todayWorkout ? getExercises(todayWorkout).slice(0, 4) : [];
   const nextMeal = getNextMeal(today);
   const waterHabit = habits.find((habit) => habit.id === "agua");
@@ -57,12 +67,10 @@ function Dashboard() {
   const supplementCompleted =
     supplementHabit?.items.filter((item) => checks[`supl-${item}`]).length ?? 0;
   const totalMealItems = meals.reduce((total, meal) => total + meal.items.length, 0);
-  const currentWeight = weightHistory.at(-1)?.weight ?? 0;
-  const firstMonthWeight = weightHistory.at(-5)?.weight ?? weightHistory[0]?.weight ?? currentWeight;
-  const monthlyDelta = currentWeight - firstMonthWeight;
-  const maxWorkoutExercises = Math.max(...workoutWeek.map(getExerciseCount));
-
-  const weekProgress = workoutWeek.map((day) => (getExerciseCount(day) / maxWorkoutExercises) * 100);
+  const currentWeight = evolutionSettings.currentWeight;
+  const lostWeight = Math.max(0, evolutionSettings.initialWeight - currentWeight);
+  const remainingWeight = Math.max(0, currentWeight - evolutionSettings.goalWeight);
+  const weeklyWorkoutProgress = getWeeklyWorkoutProgress(today, history);
   const habitRows = [
     [`Água ${waterCompleted}/${waterTotal} garrafas`, waterCompleted === waterTotal],
     [
@@ -75,6 +83,13 @@ function Dashboard() {
   function handleLogout() {
     logout();
     navigate({ to: "/login" });
+  }
+
+  function handleStartWorkout() {
+    if (!todayWorkout) return;
+
+    startTodayWorkout();
+    navigate({ to: "/treinos" });
   }
 
   return (
@@ -103,9 +118,27 @@ function Dashboard() {
       </header>
 
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Stat icon={Dumbbell} label="Treino" value={todayWorkout?.day ?? "Descanso"} sub={todayWorkout?.focus ?? "sem treino obrigatório"} accent="bg-neon/15 text-neon" />
+        <Stat
+          icon={isTodayWorkoutCompleted ? CheckCircle2 : Dumbbell}
+          label="Treino"
+          value={isTodayWorkoutCompleted ? "Concluído" : todayWorkout?.day ?? "Descanso"}
+          sub={
+            todayWorkout
+              ? isTodayWorkoutCompleted
+                ? `${completedExerciseCount}/${todayExerciseCount} exercícios finalizados`
+                : todayWorkout.focus
+              : "sem treino obrigatório"
+          }
+          accent={isTodayWorkoutCompleted ? "bg-neon text-primary-foreground" : "bg-neon/15 text-neon"}
+        />
         <Stat icon={Droplet} label="Água" value={`${waterMl} ml`} sub={`${waterCompleted}/${waterTotal} garrafas · meta 3000ml`} accent="bg-accent/15 text-accent" />
-        <Stat icon={Scale} label="Peso atual" value={formatKg(currentWeight)} sub={`${formatSignedKg(monthlyDelta)} no mês`} accent="bg-neon/15 text-neon" />
+        <Stat
+          icon={Scale}
+          label="Peso atual"
+          value={formatKgCompact(currentWeight)}
+          sub={`${formatKgAmount(lostWeight)} perdidos • faltam ${formatKgAmount(remainingWeight)}`}
+          accent="bg-neon/15 text-neon"
+        />
         <Stat icon={Pill} label="Suplementos" value={`${supplementCompleted}/${supplementTotal}`} sub="Whey e Creatina" accent="bg-accent/15 text-accent" />
       </section>
 
@@ -119,7 +152,11 @@ function Dashboard() {
               <div>
                 <h2 className="font-semibold">Treino de hoje</h2>
                 <p className="text-xs text-muted-foreground">
-                  {todayWorkout ? `${todayWorkout.focus}${todayWorkout.cardio ? ` · Cardio ${todayWorkout.cardio}` : ""}` : "Descanso"}
+                  {todayWorkout
+                    ? isTodayWorkoutCompleted
+                      ? "Treino de hoje concluído"
+                      : `${todayWorkout.focus}${todayWorkout.cardio ? ` · Cardio ${todayWorkout.cardio}` : ""}`
+                    : "Hoje é dia de descanso."}
                 </p>
               </div>
             </div>
@@ -133,11 +170,28 @@ function Dashboard() {
               </li>
             ))}
             {!todayWorkout && (
-              <li className="py-3 text-sm text-muted-foreground">Sem treino cadastrado para {getWeekdayName(today)}.</li>
+              <li className="py-3 text-sm text-muted-foreground">Hoje é dia de descanso.</li>
             )}
           </ul>
-          <button className="mt-5 w-full bg-neon text-primary-foreground font-semibold py-3 rounded-xl hover:opacity-90 transition glow-neon">
-            Iniciar treino
+          <button
+            type="button"
+            onClick={handleStartWorkout}
+            disabled={!todayWorkout || isTodayWorkoutCompleted}
+            className={`mt-5 w-full font-semibold py-3 rounded-xl transition ${
+              isTodayWorkoutCompleted
+                ? "bg-neon/20 text-neon border border-neon/30 cursor-default"
+                : todayWorkout
+                  ? "bg-neon text-primary-foreground glow-neon hover:opacity-90"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
+            }`}
+          >
+            {isTodayWorkoutCompleted
+              ? "Treino concluído"
+              : isTodayWorkoutInProgress
+                ? "Continuar treino"
+                : todayWorkout
+                  ? "Iniciar treino"
+                  : "Hoje é dia de descanso"}
           </button>
         </div>
 
@@ -171,13 +225,43 @@ function Dashboard() {
               <TrendingUp className="h-5 w-5 text-neon" />
               <h2 className="font-semibold">Progresso semanal</h2>
             </div>
-            <span className="text-xs text-muted-foreground">exercícios por treino</span>
+            <span className="text-xs text-muted-foreground">treinos da semana</span>
           </div>
-          <div className="flex items-end gap-3 h-40">
-            {weekProgress.map((v, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full rounded-t-lg gradient-primary" style={{ height: `${v}%` }} />
-                <span className="text-[10px] text-muted-foreground">{workoutWeek[i].day.slice(0, 1)}</span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+            {weeklyWorkoutProgress.map((day) => (
+              <div
+                key={day.label}
+                className={`rounded-xl border p-3 min-h-28 flex flex-col justify-between transition ${
+                  day.status === "completed"
+                    ? "border-neon/40 bg-neon/10"
+                    : day.status === "rest"
+                      ? "border-accent/20 bg-accent/10"
+                      : "border-border bg-secondary/30"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-bold">{day.short}</span>
+                  <StatusIcon status={day.status} />
+                </div>
+                <div>
+                  <div className="text-lg font-bold">
+                    {day.exerciseCount > 0 ? day.exerciseCount : "-"}
+                  </div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {day.exerciseCount > 0 ? "exercícios" : "descanso"}
+                  </div>
+                </div>
+                <div
+                  className={`text-[11px] font-semibold ${
+                    day.status === "completed"
+                      ? "text-neon"
+                      : day.status === "rest"
+                        ? "text-accent"
+                        : "text-muted-foreground"
+                  }`}
+                >
+                  {day.statusLabel}
+                </div>
               </div>
             ))}
           </div>
@@ -204,6 +288,63 @@ function Dashboard() {
   );
 }
 
+type WeeklyWorkoutStatus = "completed" | "pending" | "rest";
+
+type WorkoutHistoryMap = ReturnType<typeof useWorkoutHistory>["history"];
+
+function getWeeklyWorkoutProgress(date: Date, history: WorkoutHistoryMap) {
+  const weekStart = getWeekStartMonday(date);
+  const trainingDays = workoutWeek.map((day, index) => {
+    const dayDate = addDays(weekStart, index);
+    const dateKey = getTodayKey(dayDate);
+    const status: WeeklyWorkoutStatus =
+      history[dateKey]?.status === "completed" ? "completed" : "pending";
+
+    return {
+      label: day.day,
+      short: day.day.slice(0, 3),
+      exerciseCount: getExerciseCount(day),
+      status,
+      statusLabel: status === "completed" ? "Concluído" : "Pendente",
+    };
+  });
+
+  return [
+    ...trainingDays,
+    {
+      label: "Domingo",
+      short: "Dom",
+      exerciseCount: 0,
+      status: "rest" as const,
+      statusLabel: "Descanso",
+    },
+  ];
+}
+
+function getWeekStartMonday(date: Date) {
+  const start = new Date(date);
+  const weekday = start.getDay();
+  const diff = weekday === 0 ? -6 : 1 - weekday;
+  start.setDate(start.getDate() + diff);
+  start.setHours(0, 0, 0, 0);
+
+  return start;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+
+  return next;
+}
+
+function StatusIcon({ status }: { status: WeeklyWorkoutStatus }) {
+  if (status === "completed") return <CheckCircle2 className="h-4 w-4 text-neon" />;
+  if (status === "rest") return <Moon className="h-4 w-4 text-accent" />;
+
+  return <Circle className="h-4 w-4 text-muted-foreground" />;
+}
+
 function getNextMeal(date: Date) {
   const hour = date.getHours();
 
@@ -221,17 +362,16 @@ function formatToday(date: Date) {
   }).format(date);
 }
 
-function formatKg(value: number) {
-  return `${formatNumber(value)} kg`;
+function formatKgCompact(value: number) {
+  return `${formatCompactNumber(value)} kg`;
 }
 
-function formatSignedKg(value: number) {
-  return `${value > 0 ? "+" : ""}${formatNumber(value)} kg`;
+function formatKgAmount(value: number) {
+  return `${formatCompactNumber(value)} kg`;
 }
 
-function formatNumber(value: number) {
+function formatCompactNumber(value: number) {
   return value.toLocaleString("pt-BR", {
-    minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
 }
