@@ -23,6 +23,7 @@ import { useEvolutionSettings } from "@/hooks/use-evolution-settings";
 import { useHabitChecks } from "@/hooks/use-habit-checks";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useReminders } from "@/hooks/use-reminders";
+import { useWaterSettings } from "@/hooks/use-water-settings";
 import { useWorkoutHistory } from "@/hooks/use-workout-history";
 import {
   getExerciseCount,
@@ -117,6 +118,7 @@ function ReminderRow({
 function Dashboard() {
   const [checks] = useHabitChecks();
   const [evolutionSettings] = useEvolutionSettings();
+  const waterSettings = useWaterSettings();
   const navigate = useNavigate();
   const { logout, profile } = useAuthProfile();
   const today = new Date();
@@ -149,13 +151,12 @@ function Dashboard() {
   } = useWorkoutHistory(today);
   const todayExercises = todayWorkout ? getExercises(todayWorkout).slice(0, 4) : [];
   const nextMeal = getNextMeal(today);
-  const waterHabit = habits.find((habit) => habit.id === "agua");
   const cardioHabit = habits.find((habit) => habit.id === "cardio");
   const supplementHabit = habits.find((habit) => habit.id === "supl");
-  const waterTotal = waterHabit?.items.length ?? 5;
-  const waterCompleted = waterHabit?.items.filter((item) => checks[`agua-${item}`]).length ?? 0;
+  const waterTotal = waterSettings.items.length;
+  const waterCompleted = waterSettings.items.filter((item) => checks[`agua-${item}`]).length;
   const waterRemaining = Math.max(0, waterTotal - waterCompleted);
-  const waterMl = waterCompleted * 600;
+  const waterMl = waterCompleted * waterSettings.settings.bottleVolumeMl;
   const todayCardioItem = todayWorkout?.cardio
     ? cardioHabit?.items.find((item) => item.startsWith(todayWorkout.day))
     : undefined;
@@ -175,7 +176,7 @@ function Dashboard() {
   );
   const waterMessage =
     waterRemaining > 0
-      ? `Faltam ${waterRemaining} garrafas para bater 3L`
+      ? `Faltam ${waterRemaining} garrafas para bater ${formatLiters(waterSettings.goalLiters)}`
       : "Meta de água concluída";
   const preWorkoutMessage = todayWorkout
     ? `Pré-treino programado para hoje${preWorkoutMeal?.calories ? ` • ${preWorkoutMeal.calories}` : ""}`
@@ -289,7 +290,7 @@ function Dashboard() {
           }
           accent={isTodayWorkoutCompleted ? "bg-neon text-primary-foreground" : "bg-neon/15 text-neon"}
         />
-        <Stat icon={Droplet} label="Água" value={`${waterMl} ml`} sub={`${waterCompleted}/${waterTotal} garrafas · meta 3000ml`} accent="bg-accent/15 text-accent" />
+        <Stat icon={Droplet} label="Água" value={`${waterMl} ml`} sub={`${waterCompleted}/${waterTotal} garrafas · meta ${formatLiters(waterSettings.goalLiters)}`} accent="bg-accent/15 text-accent" />
         <Stat
           icon={Scale}
           label="Peso atual"
@@ -595,6 +596,10 @@ function formatKgCompact(value: number) {
 
 function formatKgAmount(value: number) {
   return `${formatCompactNumber(value)} kg`;
+}
+
+function formatLiters(value: number) {
+  return `${formatCompactNumber(value)}L`;
 }
 
 function formatCompactNumber(value: number) {

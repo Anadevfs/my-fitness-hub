@@ -74,15 +74,20 @@ export function useAuthProfile() {
       return false;
     }
 
+    const storedProfile = readJson(PROFILE_STORAGE_KEY, defaultProfile);
+    const nextProfile = {
+      ...storedProfile,
+      name: storedProfile.name || defaultProfile.name,
+    };
     const nextAuth = {
       isAuthenticated: true,
-      currentUser: "Ana",
+      currentUser: nextProfile.name,
     };
 
     writeJson(AUTH_STORAGE_KEY, nextAuth);
-    writeJson(PROFILE_STORAGE_KEY, { ...profile, name: "Ana" });
+    writeJson(PROFILE_STORAGE_KEY, nextProfile);
     setAuth(nextAuth);
-    setProfile((current) => ({ ...current, name: "Ana" }));
+    setProfile(nextProfile);
 
     return true;
   }
@@ -104,6 +109,16 @@ export function useAuthProfile() {
     setProfile(nextProfile);
   }
 
+  function saveName(name: string) {
+    const nextProfile = {
+      ...profile,
+      name: name.trim() || defaultProfile.name,
+    };
+
+    writeJson(PROFILE_STORAGE_KEY, nextProfile);
+    setProfile(nextProfile);
+  }
+
   return {
     auth,
     profile,
@@ -111,5 +126,6 @@ export function useAuthProfile() {
     login,
     logout,
     saveAvatar,
+    saveName,
   };
 }

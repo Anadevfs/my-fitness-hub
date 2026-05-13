@@ -6,6 +6,7 @@ import {
   TrendingUp,
   CheckCircle2,
   LogOut,
+  Settings,
 } from "lucide-react";
 
 import { BrandLogo } from "@/components/BrandLogo";
@@ -18,6 +19,7 @@ const items = [
   { title: "Dieta", url: "/dieta", icon: Salad },
   { title: "Evolução", url: "/evolucao", icon: TrendingUp },
   { title: "Hábitos", url: "/habitos", icon: CheckCircle2 },
+  { title: "Config", url: "/configuracoes", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -83,7 +85,7 @@ export function MobileNav() {
   const currentPath = useRouterState({ select: (s) => s.location.pathname });
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-sidebar/95 backdrop-blur border-t border-sidebar-border">
-      <div className="grid grid-cols-5">
+      <div className="grid grid-cols-6">
         {items.map((item) => {
           const active = currentPath === item.url;
           const Icon = item.icon;

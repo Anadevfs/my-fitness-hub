@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Droplet, Heart, Pill } from "lucide-react";
 
 import { useHabitChecks } from "@/hooks/use-habit-checks";
+import { useWaterSettings } from "@/hooks/use-water-settings";
 import { habits } from "@/lib/fitness-data";
 
 export const Route = createFileRoute("/habitos")({
@@ -16,6 +17,17 @@ const habitIcons = {
 
 function Habitos() {
   const [checks, setChecks] = useHabitChecks();
+  const waterSettings = useWaterSettings();
+  const dailyHabits = habits.map((habit) =>
+    habit.id === "agua"
+      ? {
+          ...habit,
+          goal: `${formatLiters(waterSettings.goalLiters)} por dia`,
+          description: `${waterSettings.settings.bottleCount} garrafas de ${waterSettings.settings.bottleVolumeMl}ml`,
+          items: waterSettings.items,
+        }
+      : habit,
+  );
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto">
@@ -25,13 +37,13 @@ function Habitos() {
       </header>
 
       <div className="grid md:grid-cols-2 gap-4">
-        {habits.map((h) => {
+        {dailyHabits.map((h) => {
           const Icon = habitIcons[h.id as keyof typeof habitIcons];
           const completed = h.items.filter((i) => checks[`${h.id}-${i}`]).length;
           const pct = (completed / h.items.length) * 100;
           const progress =
             h.id === "agua" && completed === h.items.length
-              ? "3L concluídos"
+              ? `${formatLiters(waterSettings.goalLiters)} concluídos`
               : `${completed}/${h.items.length}`;
 
           return (
@@ -50,7 +62,9 @@ function Habitos() {
                 <div className="text-right">
                   <div className="text-sm font-bold text-neon">{progress}</div>
                   {h.id === "agua" && (
-                    <div className="text-[11px] text-muted-foreground">600ml cada</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {waterSettings.settings.bottleVolumeMl}ml cada
+                    </div>
                   )}
                 </div>
               </div>
@@ -84,4 +98,8 @@ function Habitos() {
       </div>
     </div>
   );
+}
+
+function formatLiters(value: number) {
+  return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}L`;
 }
