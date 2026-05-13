@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import {
   Apple,
   Bell,
@@ -20,6 +21,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { useAuthProfile } from "@/hooks/use-auth-profile";
 import { useEvolutionSettings } from "@/hooks/use-evolution-settings";
 import { useHabitChecks } from "@/hooks/use-habit-checks";
+import { useNotifications } from "@/hooks/use-notifications";
 import { useReminders } from "@/hooks/use-reminders";
 import { useWorkoutHistory } from "@/hooks/use-workout-history";
 import {
@@ -120,12 +122,22 @@ function Dashboard() {
   const today = new Date();
   const {
     creatineTaken,
+    dateKey: remindersDateKey,
     freeMealUsed,
     preWorkoutDone,
     setCreatineTaken,
     setFreeMealUsed,
     setPreWorkoutDone,
+    weekKey: remindersWeekKey,
   } = useReminders(today);
+  const {
+    disableNotifications,
+    enabled: notificationsEnabled,
+    notifyOnce,
+    permission: notificationPermission,
+    requestNotifications,
+    supported: notificationsSupported,
+  } = useNotifications();
   const todayWorkout = getTodayWorkout(today);
   const {
     completedExerciseCount,
@@ -193,6 +205,50 @@ function Dashboard() {
     startTodayWorkout();
     navigate({ to: "/treinos" });
   }
+
+  useEffect(() => {
+    if (waterRemaining > 0) {
+      notifyOnce({
+        id: "water",
+        scopeKey: remindersDateKey,
+        body: waterMessage,
+      });
+    }
+
+    if (!creatineTaken) {
+      notifyOnce({
+        id: "creatine",
+        scopeKey: remindersDateKey,
+        body: "Não esqueça sua creatina",
+      });
+    }
+
+    if (todayWorkout && !preWorkoutDone) {
+      notifyOnce({
+        id: "pre-workout",
+        scopeKey: remindersDateKey,
+        body: "Pré-treino programado para hoje",
+      });
+    }
+
+    if (!freeMealUsed) {
+      notifyOnce({
+        id: "free-meal",
+        scopeKey: remindersWeekKey,
+        body: "Refeição livre disponível esta semana",
+      });
+    }
+  }, [
+    creatineTaken,
+    freeMealUsed,
+    notifyOnce,
+    preWorkoutDone,
+    remindersDateKey,
+    remindersWeekKey,
+    todayWorkout,
+    waterMessage,
+    waterRemaining,
+  ]);
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto">
@@ -332,7 +388,26 @@ function Dashboard() {
                 <p className="text-xs text-muted-foreground">Checklist rápido do dia.</p>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={notificationsEnabled ? disableNotifications : requestNotifications}
+              disabled={!notificationsSupported}
+              className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                notificationsEnabled
+                  ? "border border-neon/30 bg-neon/10 text-neon"
+                  : "border border-border bg-secondary/40 text-muted-foreground hover:border-neon/30 hover:text-neon"
+              } ${!notificationsSupported ? "cursor-not-allowed opacity-60" : ""}`}
+            >
+              {notificationsEnabled ? "Notificações ativas" : "Ativar notificações"}
+            </button>
           </div>
+          <p className="mb-4 text-[11px] text-muted-foreground">
+            {notificationsSupported
+              ? notificationPermission === "denied"
+                ? "Permissão bloqueada no navegador."
+                : "Avisos locais aparecem só com o app aberto."
+              : "Notificações não são suportadas neste navegador."}
+          </p>
 
           <div className="space-y-3">
             <ReminderRow
