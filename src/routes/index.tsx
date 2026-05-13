@@ -1,11 +1,26 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { CheckCircle2, Circle, Droplet, Dumbbell, Moon, Pill, Salad, Scale, TrendingUp } from "lucide-react";
+import {
+  Apple,
+  Bell,
+  CheckCircle2,
+  Circle,
+  Droplet,
+  Dumbbell,
+  type LucideIcon,
+  Moon,
+  Pill,
+  Salad,
+  Scale,
+  TrendingUp,
+  Utensils,
+} from "lucide-react";
 
 import { BrandLogo } from "@/components/BrandLogo";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuthProfile } from "@/hooks/use-auth-profile";
 import { useEvolutionSettings } from "@/hooks/use-evolution-settings";
 import { useHabitChecks } from "@/hooks/use-habit-checks";
+import { useReminders } from "@/hooks/use-reminders";
 import { useWorkoutHistory } from "@/hooks/use-workout-history";
 import {
   getExerciseCount,
@@ -36,12 +51,81 @@ function Stat({ icon: Icon, label, value, sub, accent }: any) {
   );
 }
 
+type ReminderRowProps = {
+  description: string;
+  detail?: string;
+  disabled?: boolean;
+  done: boolean;
+  icon: LucideIcon;
+  onToggle?: () => void;
+  status: string;
+  title: string;
+};
+
+function ReminderRow({
+  description,
+  detail,
+  disabled,
+  done,
+  icon: Icon,
+  onToggle,
+  status,
+  title,
+}: ReminderRowProps) {
+  return (
+    <div className={`rounded-xl border p-3 transition ${done ? "border-neon/35 bg-neon/10" : "border-border bg-secondary/30"}`}>
+      <div className="flex items-start gap-3">
+        <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${done ? "bg-neon/15 text-neon" : "bg-accent/15 text-accent"}`}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold">{title}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+            </div>
+            <span className={`text-[10px] uppercase tracking-wider font-semibold ${done ? "text-neon" : "text-muted-foreground"}`}>
+              {status}
+            </span>
+          </div>
+          {detail ? <p className="text-[11px] text-muted-foreground mt-2">{detail}</p> : null}
+        </div>
+        {onToggle ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onToggle}
+            aria-label={`${done ? "Desmarcar" : "Marcar"} ${title}`}
+            className={`h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition ${
+              done
+                ? "bg-neon border-neon text-primary-foreground"
+                : disabled
+                  ? "border-border text-muted-foreground opacity-50 cursor-not-allowed"
+                  : "border-border text-muted-foreground hover:border-neon/60"
+            }`}
+          >
+            {done ? <CheckCircle2 className="h-4 w-4" /> : null}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function Dashboard() {
   const [checks] = useHabitChecks();
   const [evolutionSettings] = useEvolutionSettings();
   const navigate = useNavigate();
   const { logout, profile } = useAuthProfile();
   const today = new Date();
+  const {
+    creatineTaken,
+    freeMealUsed,
+    preWorkoutDone,
+    setCreatineTaken,
+    setFreeMealUsed,
+    setPreWorkoutDone,
+  } = useReminders(today);
   const todayWorkout = getTodayWorkout(today);
   const {
     completedExerciseCount,
@@ -58,6 +142,7 @@ function Dashboard() {
   const supplementHabit = habits.find((habit) => habit.id === "supl");
   const waterTotal = waterHabit?.items.length ?? 5;
   const waterCompleted = waterHabit?.items.filter((item) => checks[`agua-${item}`]).length ?? 0;
+  const waterRemaining = Math.max(0, waterTotal - waterCompleted);
   const waterMl = waterCompleted * 600;
   const todayCardioItem = todayWorkout?.cardio
     ? cardioHabit?.items.find((item) => item.startsWith(todayWorkout.day))
@@ -67,10 +152,27 @@ function Dashboard() {
   const supplementCompleted =
     supplementHabit?.items.filter((item) => checks[`supl-${item}`]).length ?? 0;
   const totalMealItems = meals.reduce((total, meal) => total + meal.items.length, 0);
+  const preWorkoutMeal = meals.find((meal) => meal.id === "pre-treino");
   const currentWeight = evolutionSettings.currentWeight;
   const lostWeight = Math.max(0, evolutionSettings.initialWeight - currentWeight);
   const remainingWeight = Math.max(0, currentWeight - evolutionSettings.goalWeight);
   const weeklyWorkoutProgress = getWeeklyWorkoutProgress(today, history);
+  const isHeavyTrainingDay = Boolean(
+    todayWorkout &&
+      ["Quadríceps", "Posterior", "Glúteo"].some((focus) => todayWorkout.focus.includes(focus)),
+  );
+  const waterMessage =
+    waterRemaining > 0
+      ? `Faltam ${waterRemaining} garrafas para bater 3L`
+      : "Meta de água concluída";
+  const preWorkoutMessage = todayWorkout
+    ? `Pré-treino programado para hoje${preWorkoutMeal?.calories ? ` • ${preWorkoutMeal.calories}` : ""}`
+    : "Hoje é dia de descanso";
+  const freeMealMessage = freeMealUsed
+    ? "Refeição livre usada nesta semana"
+    : isHeavyTrainingDay
+      ? "Refeição livre disponível esta semana • bom dia para usar"
+      : "Refeição livre disponível esta semana";
   const habitRows = [
     [`Água ${waterCompleted}/${waterTotal} garrafas`, waterCompleted === waterTotal],
     [
@@ -216,6 +318,56 @@ function Dashboard() {
           <div className="mt-5 pt-4 border-t border-border flex justify-between text-xs">
             <span className="text-muted-foreground">{meals.length} refeições no dia</span>
             <span className="text-neon font-medium">{totalMealItems} alimentos</span>
+          </div>
+        </div>
+
+        <div className="card-elevated rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-accent/15 text-accent flex items-center justify-center">
+                <Bell className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-semibold">Lembretes</h2>
+                <p className="text-xs text-muted-foreground">Checklist rápido do dia.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <ReminderRow
+              icon={Droplet}
+              title="Água"
+              description={`${waterCompleted}/${waterTotal} garrafas`}
+              status={waterRemaining > 0 ? "Pendente" : "Concluído"}
+              done={waterRemaining === 0}
+              detail={waterMessage}
+            />
+            <ReminderRow
+              icon={Pill}
+              title="Creatina"
+              description="Creatina tomada?"
+              status={creatineTaken ? "Concluído" : "Pendente"}
+              done={creatineTaken}
+              onToggle={() => setCreatineTaken(!creatineTaken)}
+            />
+            <ReminderRow
+              icon={Apple}
+              title="Pré-treino"
+              description={preWorkoutMessage}
+              status={!todayWorkout ? "Descanso" : preWorkoutDone ? "Concluído" : "Pendente"}
+              done={!todayWorkout || preWorkoutDone}
+              disabled={!todayWorkout}
+              onToggle={() => setPreWorkoutDone(!preWorkoutDone)}
+            />
+            <ReminderRow
+              icon={Utensils}
+              title="Refeição livre"
+              description={freeMealMessage}
+              status={freeMealUsed ? "Usada" : "Disponível"}
+              done={freeMealUsed}
+              onToggle={() => setFreeMealUsed(!freeMealUsed)}
+            />
           </div>
         </div>
 
