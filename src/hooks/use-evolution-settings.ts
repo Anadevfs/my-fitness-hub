@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 
+import { AUTH_STORAGE_KEY } from "@/hooks/use-auth-profile";
+import { supabase } from "@/lib/supabase";
+
 export const EVOLUTION_STORAGE_KEY = "my-fitness-hub-evolution";
 const EVOLUTION_SETTINGS_EVENT = "valkyrfit-evolution-settings-updated";
+const USER_DATA_TABLE = "user_data";
 
 export type EvolutionSettings = {
   initialWeight: number;
@@ -14,6 +18,36 @@ export const defaultEvolutionSettings: EvolutionSettings = {
   currentWeight: 65,
   goalWeight: 62,
 };
+
+type UserDataPayload = {
+  evolution?: Partial<EvolutionSettings>;
+  [key: string]: unknown;
+};
+
+type UserDataRow = {
+  data: UserDataPayload | null;
+};
+
+function normalizeEvolutionSettings(value: unknown): EvolutionSettings | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const maybeSettings = value as Partial<Record<keyof EvolutionSettings, unknown>>;
+  const initialWeight = Number(maybeSettings.initialWeight);
+  const currentWeight = Number(maybeSettings.currentWeight);
+  const goalWeight = Number(maybeSettings.goalWeight);
+
+  if (![initialWeight, currentWeight, goalWeight].every(Number.isFinite)) {
+    return null;
+  }
+
+  return {
+    initialWeight,
+    currentWeight,
+    goalWeight,
+  };
+}
 
 function readEvolutionSettings() {
   if (typeof window === "undefined") {
@@ -37,11 +71,101 @@ function writeEvolutionSettings(settings: EvolutionSettings) {
   window.dispatchEvent(new Event(EVOLUTION_SETTINGS_EVENT));
 }
 
+function readLocalAuthUser() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    const auth = raw ? (JSON.parse(raw) as { currentUser?: string | null }) : null;
+    return auth?.currentUser?.trim().toLowerCase() || null;
+  } catch {
+    return null;
+  }
+}
+
+async function getUserDataOwnerKey() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  return user?.id ?? readLocalAuthUser() ?? "ana";
+}
+
+async function readSupabaseEvolutionSettings() {
+  const userId = await getUserDataOwnerKey();
+  const { data, error } = await supabase
+    .from(USER_DATA_TABLE)
+    .select("data")
+    .eq("user_id", userId)
+    .maybeSingle<UserDataRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return normalizeEvolutionSettings(data?.data?.evolution);
+}
+
+async function writeSupabaseEvolutionSettings(settings: EvolutionSettings) {
+  const userId = await getUserDataOwnerKey();
+  const { data: existingRow, error: readError } = await supabase
+    .from(USER_DATA_TABLE)
+    .select("data")
+    .eq("user_id", userId)
+    .maybeSingle<UserDataRow>();
+
+  if (readError) {
+    throw readError;
+  }
+
+  const currentData = existingRow?.data ?? {};
+  const { error: writeError } = await supabase
+    .from(USER_DATA_TABLE)
+    .upsert(
+      {
+        user_id: userId,
+        data: {
+          ...currentData,
+          evolution: settings,
+        },
+      },
+      { onConflict: "user_id" },
+    );
+
+  if (writeError) {
+    throw writeError;
+  }
+}
+
 export function useEvolutionSettings() {
   const [settings, setSettings] = useState<EvolutionSettings>(defaultEvolutionSettings);
 
   useEffect(() => {
-    setSettings(readEvolutionSettings());
+    let isMounted = true;
+    const localSettings = readEvolutionSettings();
+
+    setSettings(localSettings);
+
+    readSupabaseEvolutionSettings()
+      .then((remoteSettings) => {
+        if (!isMounted) return;
+        if (!remoteSettings) {
+          writeSupabaseEvolutionSettings(localSettings).catch(() => undefined);
+          return;
+        }
+        setSettings(remoteSettings);
+        writeEvolutionSettings(remoteSettings);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setSettings(localSettings);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -62,6 +186,9 @@ export function useEvolutionSettings() {
   function saveSettings(nextSettings: EvolutionSettings) {
     setSettings(nextSettings);
     writeEvolutionSettings(nextSettings);
+    writeSupabaseEvolutionSettings(nextSettings).catch(() => {
+      setSettings(readEvolutionSettings());
+    });
   }
 
   return [settings, saveSettings] as const;
