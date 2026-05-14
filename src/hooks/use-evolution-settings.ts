@@ -24,7 +24,9 @@ type UserDataPayload = {
 };
 
 type UserDataRow = {
+  id: string;
   data: UserDataPayload | null;
+  updated_at?: string | null;
 };
 
 function normalizeEvolutionSettings(value: unknown): EvolutionSettings | null {
@@ -86,40 +88,44 @@ async function readSupabaseEvolutionSettings() {
   const userId = await getUserDataOwnerKey();
   const { data, error } = await supabase
     .from(USER_DATA_TABLE)
-    .select("data")
+    .select("id,data,updated_at")
     .eq("user_id", userId)
-    .maybeSingle<UserDataRow>();
+    .order("updated_at", { ascending: false })
+    .limit(10)
+    .returns<UserDataRow[]>();
 
   if (error) {
     throw error;
   }
 
-  return normalizeEvolutionSettings(data?.data?.evolution);
+  return data?.map((row) => normalizeEvolutionSettings(row.data?.evolution)).find(Boolean) ?? null;
 }
 
 async function writeSupabaseEvolutionSettings(settings: EvolutionSettings) {
   const userId = await getUserDataOwnerKey();
-  const { data: existingRow, error: readError } = await supabase
+  const { data: existingRows, error: readError } = await supabase
     .from(USER_DATA_TABLE)
-    .select("data")
+    .select("id,data,updated_at")
     .eq("user_id", userId)
-    .maybeSingle<UserDataRow>();
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .returns<UserDataRow[]>();
 
   if (readError) {
     throw readError;
   }
 
+  const existingRow = existingRows?.[0] ?? null;
   const currentData = existingRow?.data ?? {};
-  const { error: writeError } = await supabase.from(USER_DATA_TABLE).upsert(
-    {
-      user_id: userId,
-      data: {
-        ...currentData,
-        evolution: settings,
-      },
-    },
-    { onConflict: "user_id" },
-  );
+  const nextData = {
+    ...currentData,
+    evolution: settings,
+  };
+  const writeRequest = existingRow
+    ? supabase.from(USER_DATA_TABLE).update({ data: nextData }).eq("id", existingRow.id)
+    : supabase.from(USER_DATA_TABLE).insert({ user_id: userId, data: nextData });
+
+  const { error: writeError } = await writeRequest;
 
   if (writeError) {
     throw writeError;
@@ -139,7 +145,9 @@ export function useEvolutionSettings() {
       .then((remoteSettings) => {
         if (!isMounted) return;
         if (!remoteSettings) {
-          writeSupabaseEvolutionSettings(localSettings).catch(() => undefined);
+          writeSupabaseEvolutionSettings(localSettings).catch((error) => {
+            console.warn("ValkyrFit: falha ao criar dados de evolução no Supabase.", error);
+          });
           return;
         }
         setSettings(remoteSettings);
@@ -173,7 +181,8 @@ export function useEvolutionSettings() {
   function saveSettings(nextSettings: EvolutionSettings) {
     setSettings(nextSettings);
     writeEvolutionSettings(nextSettings);
-    writeSupabaseEvolutionSettings(nextSettings).catch(() => {
+    writeSupabaseEvolutionSettings(nextSettings).catch((error) => {
+      console.warn("ValkyrFit: falha ao sincronizar evolução com Supabase.", error);
       setSettings(readEvolutionSettings());
     });
   }

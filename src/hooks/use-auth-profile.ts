@@ -31,6 +31,12 @@ const defaultProfile: ProfileState = {
   avatar: null,
 };
 
+type UserDataRow = {
+  id: string;
+  data: Record<string, unknown> | null;
+  updated_at?: string | null;
+};
+
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") {
     return fallback;
@@ -67,17 +73,19 @@ function readLocalEvolutionData() {
 }
 
 async function ensureUserData(userId: string) {
-  const { data: existingRow, error: readError } = await supabase
+  const { data: existingRows, error: readError } = await supabase
     .from(USER_DATA_TABLE)
-    .select("data")
+    .select("id,data,updated_at")
     .eq("user_id", userId)
-    .maybeSingle<{ data: Record<string, unknown> | null }>();
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .returns<UserDataRow[]>();
 
   if (readError) {
     throw readError;
   }
 
-  if (existingRow) {
+  if (existingRows?.[0]) {
     return;
   }
 
@@ -136,7 +144,9 @@ export function useAuthProfile() {
       writeJson(AUTH_STORAGE_KEY, nextAuth);
       setAuth(nextAuth);
       setHasLoaded(true);
-      ensureUserData(session.user.id).catch(() => undefined);
+      ensureUserData(session.user.id).catch((error) => {
+        console.warn("ValkyrFit: falha ao garantir user_data no Supabase.", error);
+      });
     }
 
     loadSession().catch(() => {
@@ -159,7 +169,9 @@ export function useAuthProfile() {
       const nextAuth = getAuthFromUser(session.user);
       writeJson(AUTH_STORAGE_KEY, nextAuth);
       setAuth(nextAuth);
-      ensureUserData(session.user.id).catch(() => undefined);
+      ensureUserData(session.user.id).catch((error) => {
+        console.warn("ValkyrFit: falha ao garantir user_data no Supabase.", error);
+      });
     });
 
     window.addEventListener("storage", refresh);
@@ -194,7 +206,9 @@ export function useAuthProfile() {
     writeJson(PROFILE_STORAGE_KEY, nextProfile);
     setAuth(nextAuth);
     setProfile(nextProfile);
-    await ensureUserData(data.user.id).catch(() => undefined);
+    await ensureUserData(data.user.id).catch((error) => {
+      console.warn("ValkyrFit: falha ao garantir user_data no Supabase.", error);
+    });
 
     return true;
   }
