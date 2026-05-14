@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, Circle, HeartPulse, Pause, Play, RotateCcw, Sparkles, Timer } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { useRestTimer } from "@/hooks/use-rest-timer";
@@ -23,6 +23,9 @@ function Treinos() {
       )
     : 0;
   const [selected, setSelected] = useState(todayIndex);
+  const [highlightedDay, setHighlightedDay] = useState<string | null>(null);
+  const workoutRefs = useRef<Record<string, HTMLElement | null>>({});
+  const highlightTimeout = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const restTimer = useRestTimer();
   const {
     completedExerciseCount,
@@ -34,6 +37,30 @@ function Treinos() {
     todayExerciseCount,
     toggleExercise,
   } = useWorkoutHistory(today);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimeout.current) {
+        window.clearTimeout(highlightTimeout.current);
+      }
+    };
+  }, []);
+
+  function handleDayNavigation(day: (typeof workoutWeek)[number], index: number) {
+    const workoutCard = workoutRefs.current[day.day];
+
+    setSelected(index);
+    setHighlightedDay(day.day);
+    workoutCard?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    if (highlightTimeout.current) {
+      window.clearTimeout(highlightTimeout.current);
+    }
+
+    highlightTimeout.current = window.setTimeout(() => {
+      setHighlightedDay(null);
+    }, 1400);
+  }
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto">
@@ -70,34 +97,38 @@ function Treinos() {
         </div>
       ) : null}
 
+      <nav
+        aria-label="Navegar pelos treinos da semana"
+        className="mb-6 -mx-1 overflow-x-auto px-1 pb-2"
+      >
+        <div className="flex min-w-max gap-2">
+          {workoutWeek.map((d, i) => {
+            const isToday = todayWorkout?.day === d.day;
+            const isSelected = selected === i;
+
+            return (
+              <button
+                key={d.day}
+                type="button"
+                aria-controls={`treino-${i}`}
+                aria-current={isSelected ? "true" : undefined}
+                onClick={() => handleDayNavigation(d, i)}
+                className={`shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                  isSelected
+                    ? "border-accent/70 bg-accent text-accent-foreground shadow-[0_0_28px_-12px_var(--violet-glow)]"
+                    : isToday
+                      ? "border-neon/40 bg-neon/10 text-neon hover:border-neon/70"
+                      : "border-border bg-secondary/50 text-foreground hover:border-accent/50 hover:text-accent"
+                }`}
+              >
+                {d.day}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
       <RestTimerCard timer={restTimer} />
-
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-6 -mx-1 px-1">
-        {workoutWeek.map((d, i) => {
-          const isToday = todayWorkout?.day === d.day;
-          const isActiveToday = isToday && isTodayWorkoutInProgress;
-          const isCompletedToday = isToday && isTodayWorkoutCompleted;
-
-          return (
-            <button
-              key={d.day}
-              onClick={() => setSelected(i)}
-              className={`shrink-0 px-4 py-3 rounded-xl text-left transition ${
-                selected === i
-                  ? "bg-neon text-primary-foreground glow-neon"
-                  : isActiveToday || isCompletedToday
-                    ? "card-elevated border-neon/40"
-                    : "card-elevated hover:border-neon/30"
-              }`}
-            >
-              <div className="text-[10px] uppercase tracking-wider opacity-70">{d.day}</div>
-              <div className="text-sm font-semibold mt-0.5">{d.focus}</div>
-              {isActiveToday ? <div className="text-[10px] mt-1 opacity-80">em andamento</div> : null}
-              {isCompletedToday ? <div className="text-[10px] mt-1 opacity-80">concluído</div> : null}
-            </button>
-          );
-        })}
-      </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
         {workoutWeek.map((day, dayIndex) => {
@@ -109,10 +140,18 @@ function Treinos() {
 
           return (
             <section
+              id={`treino-${dayIndex}`}
               key={day.day}
+              ref={(element) => {
+                workoutRefs.current[day.day] = element;
+              }}
               className={`card-elevated rounded-2xl p-5 md:p-6 transition ${
                 selected === dayIndex ? "border-neon/50" : ""
-              } ${isCurrentWorkout ? "ring-1 ring-neon/40" : ""}`}
+              } ${isCurrentWorkout ? "ring-1 ring-neon/40" : ""} ${
+                highlightedDay === day.day
+                  ? "ring-2 ring-accent/80 shadow-[0_0_38px_-14px_var(--violet-glow)]"
+                  : ""
+              } scroll-mt-24 md:scroll-mt-28`}
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
                 <div>
