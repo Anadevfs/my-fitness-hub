@@ -39,7 +39,15 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-function Stat({ icon: Icon, label, value, sub, accent }: any) {
+type StatProps = {
+  accent: string;
+  icon: LucideIcon;
+  label: string;
+  sub: string;
+  value: string;
+};
+
+function Stat({ accent, icon: Icon, label, sub, value }: StatProps) {
   return (
     <div className="card-elevated rounded-2xl p-5">
       <div className="flex items-center justify-between mb-3">
@@ -76,9 +84,13 @@ function ReminderRow({
   title,
 }: ReminderRowProps) {
   return (
-    <div className={`rounded-xl border p-3 transition ${done ? "border-neon/35 bg-neon/10" : "border-border bg-secondary/30"}`}>
+    <div
+      className={`rounded-xl border p-3 transition ${done ? "border-neon/35 bg-neon/10" : "border-border bg-secondary/30"}`}
+    >
       <div className="flex items-start gap-3">
-        <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${done ? "bg-neon/15 text-neon" : "bg-accent/15 text-accent"}`}>
+        <div
+          className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${done ? "bg-neon/15 text-neon" : "bg-accent/15 text-accent"}`}
+        >
           <Icon className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
@@ -87,7 +99,9 @@ function ReminderRow({
               <h3 className="text-sm font-semibold">{title}</h3>
               <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
             </div>
-            <span className={`text-[10px] uppercase tracking-wider font-semibold ${done ? "text-neon" : "text-muted-foreground"}`}>
+            <span
+              className={`text-[10px] uppercase tracking-wider font-semibold ${done ? "text-neon" : "text-muted-foreground"}`}
+            >
               {status}
             </span>
           </div>
@@ -172,7 +186,7 @@ function Dashboard() {
   const weeklyWorkoutProgress = getWeeklyWorkoutProgress(today, history);
   const isHeavyTrainingDay = Boolean(
     todayWorkout &&
-      ["Quadríceps", "Posterior", "Glúteo"].some((focus) => todayWorkout.focus.includes(focus)),
+    ["Quadríceps", "Posterior", "Glúteo"].some((focus) => todayWorkout.focus.includes(focus)),
   );
   const waterMessage =
     waterRemaining > 0
@@ -192,11 +206,14 @@ function Dashboard() {
       todayCardioItem ? `Cardio ${todayWorkout?.cardio}` : "Cardio descanso",
       todayCardioItem ? cardioDone : true,
     ],
-    [`Suplementos ${supplementCompleted}/${supplementTotal}`, supplementCompleted === supplementTotal],
+    [
+      `Suplementos ${supplementCompleted}/${supplementTotal}`,
+      supplementCompleted === supplementTotal,
+    ],
   ] as const;
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await logout();
     navigate({ to: "/login" });
   }
 
@@ -280,7 +297,7 @@ function Dashboard() {
         <Stat
           icon={isTodayWorkoutCompleted ? CheckCircle2 : Dumbbell}
           label="Treino"
-          value={isTodayWorkoutCompleted ? "Concluído" : todayWorkout?.day ?? "Descanso"}
+          value={isTodayWorkoutCompleted ? "Concluído" : (todayWorkout?.day ?? "Descanso")}
           sub={
             todayWorkout
               ? isTodayWorkoutCompleted
@@ -288,9 +305,17 @@ function Dashboard() {
                 : todayWorkout.focus
               : "sem treino obrigatório"
           }
-          accent={isTodayWorkoutCompleted ? "bg-neon text-primary-foreground" : "bg-neon/15 text-neon"}
+          accent={
+            isTodayWorkoutCompleted ? "bg-neon text-primary-foreground" : "bg-neon/15 text-neon"
+          }
         />
-        <Stat icon={Droplet} label="Água" value={`${waterMl} ml`} sub={`${waterCompleted}/${waterTotal} garrafas · meta ${formatLiters(waterSettings.goalLiters)}`} accent="bg-accent/15 text-accent" />
+        <Stat
+          icon={Droplet}
+          label="Água"
+          value={`${waterMl} ml`}
+          sub={`${waterCompleted}/${waterTotal} garrafas · meta ${formatLiters(waterSettings.goalLiters)}`}
+          accent="bg-accent/15 text-accent"
+        />
         <Stat
           icon={Scale}
           label="Peso atual"
@@ -298,7 +323,13 @@ function Dashboard() {
           sub={`${formatKgAmount(lostWeight)} perdidos • faltam ${formatKgAmount(remainingWeight)}`}
           accent="bg-neon/15 text-neon"
         />
-        <Stat icon={Pill} label="Suplementos" value={`${supplementCompleted}/${supplementTotal}`} sub="Whey e Creatina" accent="bg-accent/15 text-accent" />
+        <Stat
+          icon={Pill}
+          label="Suplementos"
+          value={`${supplementCompleted}/${supplementTotal}`}
+          sub="Whey e Creatina"
+          accent="bg-accent/15 text-accent"
+        />
       </section>
 
       <section className="grid lg:grid-cols-3 gap-4">
@@ -319,7 +350,9 @@ function Dashboard() {
                 </p>
               </div>
             </div>
-            <Link to="/treinos" className="text-xs text-neon hover:underline">Ver tudo</Link>
+            <Link to="/treinos" className="text-xs text-neon hover:underline">
+              Ver tudo
+            </Link>
           </div>
           <ul className="divide-y divide-border">
             {todayExercises.map((e) => (
@@ -504,7 +537,9 @@ function Dashboard() {
             {habitRows.map(([label, done]) => (
               <li key={label as string} className="flex items-center justify-between">
                 <span className={done ? "line-through text-muted-foreground" : ""}>{label}</span>
-                <span className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${done ? "bg-neon border-neon" : "border-border"}`}>
+                <span
+                  className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${done ? "bg-neon border-neon" : "border-border"}`}
+                >
                   {done && <span className="text-[10px] text-primary-foreground font-bold">✓</span>}
                 </span>
               </li>

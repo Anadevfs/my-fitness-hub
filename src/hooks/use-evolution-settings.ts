@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 
-import { AUTH_STORAGE_KEY } from "@/hooks/use-auth-profile";
 import { supabase } from "@/lib/supabase";
 
 export const EVOLUTION_STORAGE_KEY = "my-fitness-hub-evolution";
@@ -71,26 +70,16 @@ function writeEvolutionSettings(settings: EvolutionSettings) {
   window.dispatchEvent(new Event(EVOLUTION_SETTINGS_EVENT));
 }
 
-function readLocalAuthUser() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
-    const auth = raw ? (JSON.parse(raw) as { currentUser?: string | null }) : null;
-    return auth?.currentUser?.trim().toLowerCase() || null;
-  } catch {
-    return null;
-  }
-}
-
 async function getUserDataOwnerKey() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return user?.id ?? readLocalAuthUser() ?? "ana";
+  if (!user?.id) {
+    throw new Error("Supabase user session not found.");
+  }
+
+  return user.id;
 }
 
 async function readSupabaseEvolutionSettings() {
@@ -121,18 +110,16 @@ async function writeSupabaseEvolutionSettings(settings: EvolutionSettings) {
   }
 
   const currentData = existingRow?.data ?? {};
-  const { error: writeError } = await supabase
-    .from(USER_DATA_TABLE)
-    .upsert(
-      {
-        user_id: userId,
-        data: {
-          ...currentData,
-          evolution: settings,
-        },
+  const { error: writeError } = await supabase.from(USER_DATA_TABLE).upsert(
+    {
+      user_id: userId,
+      data: {
+        ...currentData,
+        evolution: settings,
       },
-      { onConflict: "user_id" },
-    );
+    },
+    { onConflict: "user_id" },
+  );
 
   if (writeError) {
     throw writeError;

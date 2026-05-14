@@ -27,8 +27,8 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { logout } = useAuthProfile();
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await logout();
     navigate({ to: "/login" });
   }
 

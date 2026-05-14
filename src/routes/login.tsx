@@ -11,9 +11,10 @@ export const Route = createFileRoute("/login")({
 function Login() {
   const navigate = useNavigate();
   const { auth, hasLoaded, login } = useAuthProfile();
-  const [user, setUser] = useState("");
+  const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (hasLoaded && auth.isAuthenticated) {
@@ -21,16 +22,18 @@ function Login() {
     }
   }, [auth.isAuthenticated, hasLoaded, navigate]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setIsSubmitting(true);
 
-    if (login(user, pwd)) {
+    if (await login(email, pwd)) {
       navigate({ to: "/" });
       return;
     }
 
-    setError("Usuária ou senha inválidos.");
+    setIsSubmitting(false);
+    setError("Email ou senha invalidos.");
   }
 
   return (
@@ -45,26 +48,33 @@ function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs uppercase tracking-wider text-muted-foreground">Usuária</label>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground">Email</label>
             <input
-              type="text" value={user} onChange={(e) => setUser(e.target.value)}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="mt-1.5 w-full bg-input border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neon"
-              placeholder="Ana"
+              placeholder="ana@valkyrfit.com"
               autoComplete="username"
             />
           </div>
           <div>
             <label className="text-xs uppercase tracking-wider text-muted-foreground">Senha</label>
             <input
-              type="password" value={pwd} onChange={(e) => setPwd(e.target.value)}
+              type="password"
+              value={pwd}
+              onChange={(e) => setPwd(e.target.value)}
               className="mt-1.5 w-full bg-input border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-neon"
-              placeholder="9109"
+              placeholder="910912"
               autoComplete="current-password"
             />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <button className="w-full bg-neon text-primary-foreground font-semibold py-3 rounded-xl hover:opacity-90 transition glow-neon">
-            Entrar
+          <button
+            disabled={isSubmitting}
+            className="w-full bg-neon text-primary-foreground font-semibold py-3 rounded-xl hover:opacity-90 transition glow-neon disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isSubmitting ? "Entrando..." : "Entrar"}
           </button>
         </form>
       </div>
